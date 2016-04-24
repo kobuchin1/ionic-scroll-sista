@@ -3,7 +3,7 @@
   'use strict';
 
   angular.module('jett.ionic.scroll.sista', ['ionic'])
-    .directive('scrollSista', function($document, $timeout, $rootScope, $ionicScrollDelegate) {
+    .directive('scrollSista', ['$document', '$timeout', '$rootScope', '$ionicScrollDelegate', function($document, $timeout, $rootScope, $ionicScrollDelegate) {
       var TRANSITION_DELAY = 400;
       var defaultDelay = TRANSITION_DELAY * 2;
       var defaultDuration = TRANSITION_DELAY + 'ms';
@@ -29,6 +29,8 @@
           var isNavBarTransitioning = true;
           var body = $document[0].body;
           var scrollDelegate = $attr.delegateHandle ? $ionicScrollDelegate.$getByHandle($attr.delegateHandle) : $ionicScrollDelegate;
+          var hasSidemenu = $attr.hasSidemenu && $attr.hasSidemenu === "true" ? true : false;
+          var parent = hasSidemenu ? $scope.$parent.$parent : $scope.$parent;
           var scrollView = scrollDelegate.getScrollView();
 
           //coordinates
@@ -78,8 +80,17 @@
           function init () {
             var activeView;
 
-            cachedHeader = body.querySelector('[nav-bar="cached"] .bar-header');
-            activeHeader = body.querySelector('[nav-bar="active"] .bar-header');
+
+            var selectorCachedHeader = '[nav-bar="cached"] .bar-header';
+            var selectorActiveHeader = '[nav-bar="active"] .bar-header';
+
+            if (hasSidemenu) {
+              selectorCachedHeader = ".menu-content " + selectorCachedHeader;
+              selectorActiveHeader = ".menu-content " + selectorActiveHeader;
+            }
+
+            cachedHeader = body.querySelector(selectorCachedHeader);
+            activeHeader = body.querySelector(selectorActiveHeader);
 
             if (!activeHeader) {
               return;
@@ -104,7 +115,9 @@
             //subheader
             //since subheader is going to be nested in the active view, get the closest active view from $element and
             activeView = getParentWithAttr($element[0], 'nav-view', 'active');
-            subHeader = activeView && activeView.querySelector('.bar-subheader');
+            var selectorSubheader = ".bar-subheader";
+            if (hasSidemenu) selectorSubheader = ".menu-content " + selectorSubheader;
+            subHeader = activeView && activeView.querySelector(selectorSubheader);
             if (subHeader) {
               subHeaderHeight = subHeader.offsetHeight;
               contentTop += subHeaderHeight;
@@ -187,7 +200,13 @@
            * @param duration
            */
           function translateElementsSync (y, duration) {
-            var contentStyle = $element[0].style;
+            // var contentStyle = $element[0].style;
+            var selector = "ion-content"
+            if (hasSidemenu) {
+              selector = ".menu-content " + selector;
+            }
+
+            var contentStyle = body.querySelector(selector).style;
             var headerY = y > headerStart ? y - headerStart : 0;
             var tabsY, subheaderY;
 
@@ -235,7 +254,7 @@
           /**
            * Before the active view leaves, reset elements, and reset the scroll container
            */
-          $scope.$parent.$on('$ionicView.beforeLeave', function () {
+          parent.$on('$ionicView.beforeLeave', function () {
             isNavBarTransitioning = true;
             translateElementsSync(0);
             activeHeader = null;
@@ -245,7 +264,7 @@
           /**
            * Scroll to the top when entering to reset then scrollView scrollTop. (prevents jumping)
            */
-          $scope.$parent.$on('$ionicView.beforeEnter', function () {
+          parent.$on('$ionicView.beforeEnter', function () {
             if (scrollView) {
               scrollView.scrollTo(0, 0);
             }
@@ -255,7 +274,7 @@
            * Ionic sets the active/cached nav-bar AFTER the afterEnter event is called, so we need to set a small
            * timeout to let the nav-bar logic run.
            */
-          $scope.$parent.$on('$ionicView.afterEnter', function () {
+          parent.$on('$ionicView.afterEnter', function () {
             initCoordinates();
 
             $timeout(function () {
@@ -271,7 +290,7 @@
             if (isNavBarTransitioning) {
               return;
             }
-            //support for jQuery events
+            //support for jQuery event as well
             e = e.originalEvent || e;
 
             var duration = 0;
@@ -298,6 +317,6 @@
 
         }
       }
-    });
+    }]);
 
 })(angular, ionic);
